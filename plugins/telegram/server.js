@@ -117,31 +117,35 @@ for (const [botName, botConfig] of Object.entries(botConfigs)) {
   bot.on('message', async (ctx) => {
     logger.debug(JSON.stringify(ctx, null, 2));
     let chatId = ctx.message.chat.id;
-    if (!botConfig.chat_ids.some(chat => Object.keys(chat)[0] === chatId.toString())) return; // Ignore messages from other chats
-    await ctx.sendChatAction('typing'); // Send a typing indicator
-    try {
-      if (ctx.message.new_chat_member) { // New member handler
-        logger.info(`New member joined chat ${chatId}`);
-        await ctx.sendChatAction('typing'); // Send a typing indicator
-        let chatName = ctx.message.chat.title;
-        let newMemberName = ctx.message.new_chat_member.first_name;
-        bot.telegram.sendMessage(chatId, `Hi ${newMemberName}. ${botConfig.greeting_message}`); // Send new user greeting msg to Telegram chat
-      } else if (ctx.message.text) { // Message handler
-        await ctx.sendChatAction('typing'); // Send a typing indicator
-        if (ctx.message.chat.titleName == null) { // If private chat, set chat name to "Private Chat"
-          var chatName = "Private Chat";
-        } else {
-          var chatName = ctx.message.chat.titleName;
-        };
-        let user = ctx.message.from.first_name; // Sender info from Telegram
-        let msg = ctx.message.text; 
-        logger.info(`Received user message from ${user} on [${chatId} chat]: ${msg}`);
-        // Send the message to all connected clients in the namespace
-        io.of(`/${chatId}`).emit('user message', msg, chatId, chatName, user); 
+    if (!botConfig.chat_ids.some(chat => Object.keys(chat)[0] === chatId.toString())) { // Ignore messages from other chats
+      logger.info(`Message from unknown chat: ${chatId}`);
+      return;
+    } else {
+      await ctx.sendChatAction('typing'); // Send a typing indicator
+      try {
+        if (ctx.message.new_chat_member) { // New member handler
+          logger.info(`New member joined chat ${chatId}`);
+          await ctx.sendChatAction('typing'); // Send a typing indicator
+          let chatName = ctx.message.chat.title;
+          let newMemberName = ctx.message.new_chat_member.first_name;
+          bot.telegram.sendMessage(chatId, `Hi ${newMemberName}. ${botConfig.greeting_message}`); // Send new user greeting msg to Telegram chat
+        } else if (ctx.message.text) { // Message handler
+          await ctx.sendChatAction('typing'); // Send a typing indicator
+          if (ctx.message.chat.titleName == null) { // If private chat, set chat name to "Private Chat"
+            var chatName = "Private Chat";
+          } else {
+            var chatName = ctx.message.chat.titleName;
+          };
+          let user = ctx.message.from.first_name; // Sender info from Telegram
+          let msg = ctx.message.text; 
+          logger.info(`Received user message from ${user} on [${chatId} chat]: ${msg}`);
+          // Send the message to all connected clients in the namespace
+          io.of(`/${chatId}`).emit('user message', msg, chatId, chatName, user); 
+        }
+      } catch (err) {
+        logger.error('Error handling message from Telegram: ' + err);
+        ctx.reply('Sorry, I am having trouble processing your request. Please try again later.');
       }
-    } catch (err) {
-      logger.error('Error handling message from Telegram: ' + err);
-      ctx.reply('Sorry, I am having trouble processing your request. Please try again later.');
     }
   });
 };
